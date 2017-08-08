@@ -1,3 +1,4 @@
+import codecs
 from bs4 import BeautifulSoup
 import datetime
 import os
@@ -5,7 +6,7 @@ import re
 import sys
 from urllib.request import Request, urlopen
 
-file_formats = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.xls', '.xlsx', '.doc', '.docx', '.ppt', '.pptx']
+file_formats = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.gif', '.GIF', '.pdf', '.PDF', '.xls', '.XLS', '.xlsx', '.XLSX', '.doc', '.DOC', '.docx', '.DOCX', '.ppt', '.PPT', '.pptx', '.PPTX']
 base_dir = os.path.dirname(os.path.abspath(__file__))
 global base_url
 base_url = ''
@@ -54,7 +55,7 @@ def get_soup(url):
             page = p.read()
         # soup = BeautifulSoup(page, 'lxml')
         # new_soup = soup.encode('utf-8').decode('ascii', 'ignore')
-        return BeautifulSoup(page, 'lxml')
+        return BeautifulSoup(page, 'html.parser')
     except Exception as e:
         if url not in links_on_error:
             links_on_error.append(url)
@@ -187,7 +188,7 @@ def main():
     with open(os.path.join(project_result_dir, 'links_on_error.txt'), 'w') as f:
         links_on_error_str = '\n'.join(links_on_error)
         f.write(links_on_error_str)
-    with open(os.path.join(project_result_dir, 'emails.txt'), 'w') as f:
+    with open(os.path.join(project_result_dir, 'emails.txt'), 'w', encoding='utf-8') as f:
         total_emails_str = '; '.join(total_emails)
         f.write(total_emails_str)
     
