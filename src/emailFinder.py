@@ -5,8 +5,10 @@ import os
 import re
 import sys
 from urllib.request import Request, urlopen
+from javascriptRenderer import render, quit, dont_render_images
 
 file_formats = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.gif', '.GIF', '.pdf', '.PDF', '.xls', '.XLS', '.xlsx', '.XLSX', '.doc', '.DOC', '.docx', '.DOCX', '.ppt', '.PPT', '.pptx', '.PPTX']
+domain_suffix = ['.com', '.com.tr', '.net', '.net.tr', '.org', '.org.tr', '.biz', '.biz.tr', '.info', '.info.tr', '.edu', '.edu.tr', '.gov', '.gov.tr']
 base_dir = os.path.dirname(os.path.abspath(__file__))
 global base_url
 base_url = ''
@@ -16,10 +18,12 @@ global links_on_error
 links_on_error = []
 global total_emails
 total_emails = []
+global use_javascript_renderer
+use_javascript_renderer = False
 
 
 # Print iterations progress
-def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
+def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
     """
     Call in a loop to create terminal progress bar
     @params:
@@ -41,18 +45,22 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 
 def clear_data():
-    global base_url, links, links_on_error, total_emails
+    global base_url, links, links_on_error, total_emails, use_javascript_renderer
     base_url = ''
     links = []
     links_on_error = []
     total_emails = []
+    use_javascript_renderer = False
 
 def get_soup(url):
     try:
-        headers = {'User-Agent': 'Mozilla'}
-        q = Request(url, headers=headers)
-        with urlopen(q) as p:
-            page = p.read()
+        if use_javascript_renderer == False:
+            headers = {'User-Agent': 'Mozilla'}
+            q = Request(url, headers=headers)
+            with urlopen(q) as p:
+                page = p.read().decode('utf-8')
+        else:
+            page = render(url)
         # soup = BeautifulSoup(page, 'lxml')
         # new_soup = soup.encode('utf-8').decode('ascii', 'ignore')
         return BeautifulSoup(page, 'html.parser')
@@ -163,29 +171,39 @@ def find_emails():
     for i, link in enumerate(links):
         soup = get_soup(link)
         emails = re.findall(r"[\w\.-]+@[\w\.-]+", str(soup))
+        is_email_suffix = False
         if len(emails) > 0:
             for email in emails:
-                if email not in total_emails:
+                for suffix in domain_suffix:
+                    if suffix in email:
+                        is_email_suffix = True
+                if email not in total_emails and is_email_suffix:
                     total_emails.append(email)
         printProgressBar(i + 1, len(links), prefix = '[p] İlerleme:', suffix = 'Tamamlandı', length = 50)
     print('[i] Toplam', len(total_emails), 'adet mail bulundu.')
 
 def main():
-    global base_url
+    global base_url, use_javascript_renderer
     base_url = input('[?] Arama yapmak istediğiniz domaini http(s)://www.example.com/ şekilinde giriniz: ')
+    user_choice_for_js = input('[?] Javascript için browser kullanılsın mı? (e/h): ')
+    if user_choice_for_js.lower() == 'e':
+        use_javascript_renderer = True
+        user_choice_for_images = input('[?] Resimler render edilsin mi? (e/h): ')
+        if user_choice_for_images.lower() == 'h':
+            dont_render_images()
     generate_links()
     find_emails()
     directory = base_url.split('.')[1]
     today = datetime.datetime.now().date()
     today_str = str(today).replace('-','')
     print('[i] Sonuçlar kaydediliyor...')
-    project_result_dir = os.path.join(base_dir, directory, today_str)
+    project_result_dir = os.path.join(base_dir, 'results', directory, today_str)
     if not os.path.exists(project_result_dir):
         os.makedirs(project_result_dir)
-    with open(os.path.join(project_result_dir, 'links.txt'), 'w') as f:
+    with open(os.path.join(project_result_dir, 'links.txt'), 'w', encoding='utf-8') as f:
         links_str = '\n'.join(links)
         f.write(links_str)
-    with open(os.path.join(project_result_dir, 'links_on_error.txt'), 'w') as f:
+    with open(os.path.join(project_result_dir, 'links_on_error.txt'), 'w', encoding='utf-8') as f:
         links_on_error_str = '\n'.join(links_on_error)
         f.write(links_on_error_str)
     with open(os.path.join(project_result_dir, 'emails.txt'), 'w', encoding='utf-8') as f:
@@ -196,7 +214,10 @@ def main():
     if stop_or_continue.lower() == 'e':
         clear_data()
         main()
+    else:
+        quit()
 
 
 if __name__ == "__main__":
     main()
+    
